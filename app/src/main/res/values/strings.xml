@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">DualMode Lock</string>
+    <string name="app_lock_accessibility_description">Optional app-lock service that detects when WhatsApp opens and displays DualMode Lock. It does not read message content.</string>
+</resources>
