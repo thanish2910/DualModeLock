@@ -22,16 +22,17 @@ class PinStore(context: Context) {
         prefs.contains("main_salt") && prefs.contains("main_hash") &&
             prefs.contains("decoy_salt") && prefs.contains("decoy_hash")
 
-    // Keeps the main app session open until the user leaves WhatsApp.
+    // One-shot grace period so the foreground watcher does not immediately relock
+    // the official app launched after a correct main PIN.
     fun authorizeMainLaunch() {
-        prefs.edit().putBoolean("main_launch_authorized", true).apply()
+        prefs.edit().putLong("main_launch_authorized_until", System.currentTimeMillis() + 5000L).apply()
     }
 
     fun isMainLaunchAuthorized(): Boolean =
-        prefs.getBoolean("main_launch_authorized", false)
+        System.currentTimeMillis() <= prefs.getLong("main_launch_authorized_until", 0L)
 
     fun clearMainLaunchAuthorization() {
-        prefs.edit().putBoolean("main_launch_authorized", false).apply()
+        prefs.edit().remove("main_launch_authorized_until").apply()
     }
 
     fun savePins(mainPin: String, decoyPin: String) {
