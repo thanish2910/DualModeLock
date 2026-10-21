@@ -22,13 +22,17 @@ class PinStore(context: Context) {
         prefs.contains("main_salt") && prefs.contains("main_hash") &&
             prefs.contains("decoy_salt") && prefs.contains("decoy_hash")
 
-    // Brief one-shot window to let the official app start after a valid main PIN.
+    // Keeps the main app session open until the user leaves WhatsApp.
     fun authorizeMainLaunch() {
-        prefs.edit().putLong("main_launch_authorized_until", System.currentTimeMillis() + 5000L).apply()
+        prefs.edit().putBoolean("main_launch_authorized", true).apply()
     }
 
     fun isMainLaunchAuthorized(): Boolean =
-        System.currentTimeMillis() <= prefs.getLong("main_launch_authorized_until", 0L)
+        prefs.getBoolean("main_launch_authorized", false)
+
+    fun clearMainLaunchAuthorization() {
+        prefs.edit().putBoolean("main_launch_authorized", false).apply()
+    }
 
     fun savePins(mainPin: String, decoyPin: String) {
         val mainSalt = ByteArray(16).also(random::nextBytes)
