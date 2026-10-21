@@ -293,9 +293,15 @@ private val demoChats = listOf(
 private fun DecoyScreen(onBack: () -> Unit, onOpenChat: (DemoChat) -> Unit) {
     var search by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf("All") }
-    val filtered = demoChats.filter {
-        it.name.contains(search, ignoreCase = true) ||
-            it.message.contains(search, ignoreCase = true)
+    val filtered = demoChats.filter { chat ->
+        val matchesSearch = chat.name.contains(search, ignoreCase = true) ||
+            chat.message.contains(search, ignoreCase = true)
+        val matchesFilter = when (selectedFilter) {
+            "Groups" -> chat.name.contains("group", ignoreCase = true)
+            "Unread" -> chat.name in setOf("Aarav", "College Group", "Maya", "ECE Study Group", "Family Group")
+            else -> true
+        }
+        matchesSearch && matchesFilter
     }
 
     Surface(Modifier.fillMaxSize(), color = Color(0xFF0B141A)) {
@@ -305,7 +311,7 @@ private fun DecoyScreen(onBack: () -> Unit, onOpenChat: (DemoChat) -> Unit) {
                 Modifier.fillMaxWidth().background(Color(0xFF101B22)).padding(start = 18.dp, end = 10.dp, top = 14.dp, bottom = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Chats", fontSize = 27.sp, fontWeight = FontWeight.Bold, color = Color(0xFFE9EDEF), modifier = Modifier.weight(1f))
+                Text("WhatsApp", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = Color(0xFFE9EDEF), modifier = Modifier.weight(1f))
                 IconButton(onClick = onBack) {
                     Icon(Icons.Default.Lock, contentDescription = "Return to lock", tint = Color(0xFFE9EDEF))
                 }
@@ -419,10 +425,10 @@ private fun DecoyScreen(onBack: () -> Unit, onOpenChat: (DemoChat) -> Unit) {
                 }
             }
             Text(
-                "DEMO MODE · Fictional local messages",
+                "DEMO MODE · Fictional local messages. Not connected to WhatsApp.",
                 color = Color(0xFF7F929D),
                 fontSize = 10.sp,
-                modifier = Modifier.fillMaxWidth().background(Color(0xFF101B22)).padding(horizontal = 12.dp, vertical = 4.dp)
+                modifier = Modifier.fillMaxWidth().background(Color(0xFF101B22)).padding(horizontal = 12.dp, vertical = 5.dp)
             )
         }
     }
