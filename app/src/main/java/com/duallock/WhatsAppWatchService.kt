@@ -5,11 +5,9 @@ import android.content.Intent
 import android.view.accessibility.AccessibilityEvent
 
 /**
- * Optional app-lock helper. The user must explicitly enable this service in Android Settings.
- * It observes foreground package changes only; it does not inspect chat text or message content.
- *
- * This is a convenience barrier, not a system-level security boundary. Android may restrict
- * launching an Activity from the background and alternate entry points can still exist.
+ * Optional convenience barrier. The user must explicitly enable this service in Android Settings.
+ * It observes foreground package changes only; it does not inspect message text or window content.
+ * This is not a system-level security boundary and cannot guarantee every entry path is blocked.
  */
 class WhatsAppWatchService : AccessibilityService() {
     private var lastPromptAt = 0L
@@ -30,10 +28,13 @@ class WhatsAppWatchService : AccessibilityService() {
         lastPromptAt = now
 
         val intent = Intent(this, MainActivity::class.java).apply {
-            action = MainActivity.ACTION_SHOW_LOCK
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         }
-        startActivity(intent)
+        try {
+            startActivity(intent)
+        } catch (_: SecurityException) {
+            // Android may restrict activity launches from the background on some devices.
+        }
     }
 
     override fun onInterrupt() = Unit
