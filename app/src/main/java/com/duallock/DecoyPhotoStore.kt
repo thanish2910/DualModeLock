@@ -17,6 +17,8 @@ class DecoyPhotoStore(context: Context) {
     fun contactPhotoUri(context: Context, selectedContactUri: Uri): Uri? {
         val resolver = context.contentResolver
         val contactLookup = ContactsContract.Contacts.lookupContact(resolver, selectedContactUri) ?: return null
-        return ContactsContract.Contacts.getPhotoUri(resolver, contactLookup)
+        // ContactsContract.Contacts.getPhotoUri is not available in all Android SDKs.
+        // The standard contact-photo content URI works with the resolved contact URI.
+        return Uri.withAppendedPath(contactLookup, ContactsContract.Contacts.Photo.CONTENT_DIRECTORY)
     }
 }
