@@ -107,6 +107,7 @@ private fun DualLockApp(pinStore: PinStore, openWhatsApp: () -> Unit) {
                     PinStore.Result.MAIN -> {
                         pin = ""
                         notice = ""
+                        pinStore.authorizeMainLaunch()
                         openWhatsApp()
                     }
                     PinStore.Result.DECOY -> {
@@ -269,7 +270,23 @@ private val demoChats = listOf(
     DemoChat("College Group", "Assignment submitted", "Yesterday", "C", Color(0xFF657D51),
         listOf("Reminder: submit the assignment" to false, "Submitted just now" to true)),
     DemoChat("Rahul", "Thanks!", "Yesterday", "R", Color(0xFFA17B54),
-        listOf("Can you share the link?" to false, "Here it is" to true, "Thanks!" to false))
+        listOf("Can you share the link?" to false, "Here it is" to true, "Thanks!" to false)),
+    DemoChat("Maya", "Sent you the notes", "Yesterday", "M", Color(0xFF9A6A7A),
+        listOf("Do you have the notes?" to false, "Sent you the notes" to true)),
+    DemoChat("ECE Study Group", "Lab record due Friday", "Tue", "E", Color(0xFF547D78),
+        listOf("Lab record due Friday" to false, "Got it" to true)),
+    DemoChat("Nikhil", "Cool, thanks!", "Tue", "N", Color(0xFF6C79A8),
+        listOf("Can you check this?" to false, "Cool, thanks!" to true)),
+    DemoChat("Ananya", "😂😂", "Mon", "A", Color(0xFFAA8055),
+        listOf("That was hilarious" to false, "😂😂" to true)),
+    DemoChat("Project Team", "I uploaded the file", "Mon", "P", Color(0xFF648B62),
+        listOf("Who has the latest file?" to false, "I uploaded the file" to true)),
+    DemoChat("Kiran", "See you tomorrow", "Sun", "K", Color(0xFF8B6D9F),
+        listOf("Are you coming?" to false, "See you tomorrow" to true)),
+    DemoChat("Family Group", "Good morning ☀️", "Sun", "F", Color(0xFF6C8B9B),
+        listOf("Good morning ☀️" to false, "Morning!" to true)),
+    DemoChat("Meera", "Thank you!", "Sat", "M", Color(0xFFB07875),
+        listOf("I sent the document" to false, "Thank you!" to true))
 )
 
 @Composable
@@ -281,7 +298,7 @@ private fun DecoyScreen(onBack: () -> Unit, onOpenChat: (DemoChat) -> Unit) {
                 Modifier.fillMaxWidth().padding(start = 18.dp, end = 12.dp, top = 22.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Chats", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = TextMain, modifier = Modifier.weight(1f))
+                Text("WhatsApp", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = TextMain, modifier = Modifier.weight(1f))
                 IconButton(onClick = onBack) { Icon(Icons.Default.Lock, contentDescription = "Lock", tint = TextMain) }
             }
             OutlinedTextField(
@@ -295,9 +312,10 @@ private fun DecoyScreen(onBack: () -> Unit, onOpenChat: (DemoChat) -> Unit) {
                     focusedContainerColor = DarkPanel, unfocusedContainerColor = DarkPanel
                 )
             )
-            Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 FilterChip(selected = true, onClick = {}, label = { Text("All") })
                 FilterChip(selected = false, onClick = {}, label = { Text("Unread") })
+                FilterChip(selected = false, onClick = {}, label = { Text("Favourites") })
                 FilterChip(selected = false, onClick = {}, label = { Text("Groups") })
             }
             LazyColumn {
@@ -322,11 +340,22 @@ private fun DecoyScreen(onBack: () -> Unit, onOpenChat: (DemoChat) -> Unit) {
                     HorizontalDivider(color = DarkPanel)
                 }
             }
-            Spacer(Modifier.weight(1f))
+            Row(
+                Modifier.fillMaxWidth().background(DarkPanel).padding(horizontal = 8.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                listOf("Chats", "Updates", "Communities", "Calls").forEachIndexed { index, label ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                        Text(if (index == 0) "●" else "○", color = if (index == 0) Green else TextMuted, fontSize = 18.sp)
+                        Text(label, color = if (index == 0) Green else TextMuted, fontSize = 10.sp)
+                    }
+                }
+            }
             Text(
-                "DEMO MODE · These are fictional local messages",
-                color = TextMuted, fontSize = 11.sp,
-                modifier = Modifier.fillMaxWidth().padding(14.dp)
+                "DEMO MODE · Fictional local messages",
+                color = TextMuted, fontSize = 10.sp,
+                modifier = Modifier.fillMaxWidth().background(DarkBg).padding(horizontal = 12.dp, vertical = 5.dp)
             )
         }
     }
