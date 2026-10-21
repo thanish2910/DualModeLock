@@ -292,70 +292,137 @@ private val demoChats = listOf(
 @Composable
 private fun DecoyScreen(onBack: () -> Unit, onOpenChat: (DemoChat) -> Unit) {
     var search by remember { mutableStateOf("") }
-    Surface(Modifier.fillMaxSize(), color = DarkBg) {
+    var selectedFilter by remember { mutableStateOf("All") }
+    val filtered = demoChats.filter {
+        it.name.contains(search, ignoreCase = true) ||
+            it.message.contains(search, ignoreCase = true)
+    }
+
+    Surface(Modifier.fillMaxSize(), color = Color(0xFF0B141A)) {
         Column {
+            // Familiar messenger structure, using original styling and no WhatsApp logo.
             Row(
-                Modifier.fillMaxWidth().padding(start = 18.dp, end = 12.dp, top = 22.dp, bottom = 12.dp),
+                Modifier.fillMaxWidth().background(Color(0xFF101B22)).padding(start = 18.dp, end = 10.dp, top = 14.dp, bottom = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("WhatsApp", fontSize = 25.sp, fontWeight = FontWeight.Bold, color = TextMain, modifier = Modifier.weight(1f))
-                IconButton(onClick = onBack) { Icon(Icons.Default.Lock, contentDescription = "Lock", tint = TextMain) }
+                Text("Chats", fontSize = 27.sp, fontWeight = FontWeight.Bold, color = Color(0xFFE9EDEF), modifier = Modifier.weight(1f))
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.Lock, contentDescription = "Return to lock", tint = Color(0xFFE9EDEF))
+                }
+                IconButton(onClick = {}) {
+                    Icon(Icons.Default.Settings, contentDescription = "Demo settings", tint = Color(0xFFE9EDEF))
+                }
             }
+
             OutlinedTextField(
-                value = search, onValueChange = { search = it },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
-                placeholder = { Text("Search chats", color = TextMuted) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextMuted) },
+                value = search,
+                onValueChange = { search = it },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                placeholder = { Text("Search conversations", color = Color(0xFFB4C0C8)) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFFB4C0C8)) },
                 singleLine = true,
+                shape = RoundedCornerShape(28.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Green, unfocusedBorderColor = DarkPanel,
-                    focusedContainerColor = DarkPanel, unfocusedContainerColor = DarkPanel
+                    focusedBorderColor = Color(0xFF3B7770),
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedContainerColor = Color(0xFF202C33),
+                    unfocusedContainerColor = Color(0xFF202C33),
+                    focusedTextColor = Color(0xFFE9EDEF),
+                    unfocusedTextColor = Color(0xFFE9EDEF)
                 )
             )
-            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FilterChip(selected = true, onClick = {}, label = { Text("All") })
-                FilterChip(selected = false, onClick = {}, label = { Text("Unread") })
-                FilterChip(selected = false, onClick = {}, label = { Text("Favourites") })
-                FilterChip(selected = false, onClick = {}, label = { Text("Groups") })
+
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf("All", "Unread", "Groups").forEach { filter ->
+                    FilterChip(
+                        selected = selectedFilter == filter,
+                        onClick = { selectedFilter = filter },
+                        label = { Text(filter) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF174F48),
+                            selectedLabelColor = Color(0xFFE9EDEF),
+                            labelColor = Color(0xFFD4DDE2)
+                        )
+                    )
+                }
             }
-            LazyColumn {
-                items(demoChats.filter { it.name.contains(search, ignoreCase = true) }) { chat ->
+
+            LazyColumn(Modifier.weight(1f)) {
+                items(filtered, key = { it.name }) { chat ->
                     Row(
-                        Modifier.fillMaxWidth().clickable { onOpenChat(chat) }.padding(horizontal = 16.dp, vertical = 12.dp),
+                        Modifier.fillMaxWidth()
+                            .clickable { onOpenChat(chat) }
+                            .padding(horizontal = 14.dp, vertical = 11.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(Modifier.size(50.dp).clip(CircleShape).background(chat.color), contentAlignment = Alignment.Center) {
-                            Text(chat.initials, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Box(
+                            Modifier.size(52.dp).clip(CircleShape).background(chat.color),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(chat.initials, fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(chat.name, fontWeight = FontWeight.SemiBold, color = TextMain, modifier = Modifier.weight(1f))
-                                Text(chat.time, fontSize = 11.sp, color = TextMuted)
+                                Text(
+                                    chat.name,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFE9EDEF),
+                                    modifier = Modifier.weight(1f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(chat.time, fontSize = 11.sp, color = Color(0xFF9BAAB3))
                             }
                             Spacer(Modifier.height(4.dp))
-                            Text(chat.message, color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 13.sp)
+                            Text(
+                                chat.message,
+                                fontSize = 13.sp,
+                                color = Color(0xFFB0BEC5),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
-                    HorizontalDivider(color = DarkPanel)
+                    HorizontalDivider(color = Color(0xFF26343C), thickness = 0.7.dp)
                 }
             }
+
             Row(
-                Modifier.fillMaxWidth().background(DarkPanel).padding(horizontal = 8.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
+                Modifier.fillMaxWidth().background(Color(0xFF101B22)).navigationBarsPadding().padding(top = 8.dp, bottom = 5.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                listOf("Chats", "Updates", "Communities", "Calls").forEachIndexed { index, label ->
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
-                        Text(if (index == 0) "●" else "○", color = if (index == 0) Green else TextMuted, fontSize = 18.sp)
-                        Text(label, color = if (index == 0) Green else TextMuted, fontSize = 10.sp)
+                listOf("Chats", "Updates", "People", "Calls").forEachIndexed { index, label ->
+                    Column(
+                        Modifier.weight(1f).clickable { }.padding(vertical = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = when (index) {
+                                0 -> Icons.Default.Message
+                                1 -> Icons.Default.Search
+                                2 -> Icons.Default.Lock
+                                else -> Icons.Default.Message
+                            },
+                            contentDescription = label,
+                            tint = if (index == 0) Color(0xFF6ED9B0) else Color(0xFF9BAAB3),
+                            modifier = Modifier.size(21.dp)
+                        )
+                        Spacer(Modifier.height(3.dp))
+                        Text(label, color = if (index == 0) Color(0xFF6ED9B0) else Color(0xFF9BAAB3), fontSize = 10.sp)
                     }
                 }
             }
             Text(
                 "DEMO MODE · Fictional local messages",
-                color = TextMuted, fontSize = 10.sp,
-                modifier = Modifier.fillMaxWidth().background(DarkBg).padding(horizontal = 12.dp, vertical = 5.dp)
+                color = Color(0xFF7F929D),
+                fontSize = 10.sp,
+                modifier = Modifier.fillMaxWidth().background(Color(0xFF101B22)).padding(horizontal = 12.dp, vertical = 4.dp)
             )
         }
     }
