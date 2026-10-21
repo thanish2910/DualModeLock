@@ -4,6 +4,9 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -26,6 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -80,7 +85,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Screen { LOCK, SETUP, DECOY, CHAT }
+private enum class Screen { LOCK, SETUP, DECOY, CHAT, PHOTOS }
 
 @Composable
 private fun DualLockApp(pinStore: PinStore, openWhatsApp: () -> Unit) {
@@ -88,6 +93,35 @@ private fun DualLockApp(pinStore: PinStore, openWhatsApp: () -> Unit) {
     var pin by remember { mutableStateOf("") }
     var selectedChat by remember { mutableStateOf<DemoChat?>(null) }
     var notice by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    val photoStore = remember(context) { DecoyPhotoStore(context) }
+    var photoRefresh by remember { mutableIntStateOf(0) }
+    var photoTarget by remember { mutableStateOf<DemoChat?>(null) }
+
+    val contactPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickContact()) { contactUri ->
+        val target = photoTarget
+        if (contactUri != null && target != null) {
+            val photoUri = photoStore.contactPhotoUri(context, contactUri)
+            if (photoUri != null) {
+                photoStore.set(target.name, photoUri)
+                photoRefresh++
+            }
+        }
+        photoTarget = null
+    }
+    val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { photoUri ->
+        val target = photoTarget
+        if (photoUri != null && target != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(photoUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (_: Exception) {
+                // Some photo providers grant only temporary access.
+            }
+            photoStore.set(target.name, photoUri)
+            photoRefresh++
+        }
+        photoTarget = null
+    }
 
     when (screen) {
         Screen.SETUP -> SetupScreen(
@@ -125,11 +159,25 @@ private fun DualLockApp(pinStore: PinStore, openWhatsApp: () -> Unit) {
             onReset = { screen = Screen.SETUP; pin = ""; notice = "" }
         )
         Screen.DECOY -> DecoyScreen(
+            photoStore = photoStore,
+            photoRefresh = photoRefresh,
             onBack = { screen = Screen.LOCK },
+            onPhotos = { screen = Screen.PHOTOS },
             onOpenChat = { selectedChat = it; screen = Screen.CHAT }
         )
+        Screen.PHOTOS -> PhotoSettingsScreen(
+            photoStore = photoStore,
+            photoRefresh = photoRefresh,
+            onBack = { screen = Screen.DECOY },
+            onChooseContact = { chat -> photoTarget = chat; contactPicker.launch() },
+            onChooseGallery = { chat ->
+                photoTarget = chat
+                galleryPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            onRemove = { chat -> photoStore.remove(chat.name); photoRefresh++ }
+        )
         Screen.CHAT -> selectedChat?.let { chat ->
-            ConversationScreen(chat = chat, onBack = { screen = Screen.DECOY })
+            ConversationScreen(chat = chat, photoStore = photoStore, photoRefresh = photoRefresh, onBack = { screen = Screen.DECOY })
         } ?: run { screen = Screen.DECOY }
     }
 }
@@ -290,7 +338,7 @@ private val demoChats = listOf(
 )
 
 @Composable
-private fun DecoyScreen(onBack: () -> Unit, onOpenChat: (DemoChat) -> Unit) {
+private fun DecoyScreen(photoStore: DecoyPhotoStore, photoRefresh: Int, onBack: () -> Unit, onPhotos: () -> Unit, onOpenChat: (DemoChat) -> Unit) {
     var search by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf("All") }
     val filtered = demoChats.filter { chat ->
@@ -315,8 +363,8 @@ private fun DecoyScreen(onBack: () -> Unit, onOpenChat: (DemoChat) -> Unit) {
                 IconButton(onClick = onBack) {
                     Icon(Icons.Default.Lock, contentDescription = "Return to lock", tint = Color(0xFFE9EDEF))
                 }
-                IconButton(onClick = {}) {
-                    Icon(Icons.Default.Settings, contentDescription = "Demo settings", tint = Color(0xFFE9EDEF))
+                IconButton(onClick = onPhotos) {
+                    Icon(Icons.Default.Settings, contentDescription = "Chat photo settings", tint = Color(0xFFE9EDEF))
                 }
             }
 
@@ -364,11 +412,8 @@ private fun DecoyScreen(onBack: () -> Unit, onOpenChat: (DemoChat) -> Unit) {
                             .padding(horizontal = 14.dp, vertical = 11.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            Modifier.size(52.dp).clip(CircleShape).background(chat.color),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(chat.initials, fontSize = 21.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                        key(photoRefresh) {
+                            ChatAvatar(chat = chat, photoStore = photoStore, size = 52)
                         }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
@@ -434,8 +479,69 @@ private fun DecoyScreen(onBack: () -> Unit, onOpenChat: (DemoChat) -> Unit) {
     }
 }
 
+
 @Composable
-private fun ConversationScreen(chat: DemoChat, onBack: () -> Unit) {
+private fun ChatAvatar(chat: DemoChat, photoStore: DecoyPhotoStore, size: Int) {
+    val photo = photoStore.get(chat.name)
+    Box(Modifier.size(size.dp).clip(CircleShape).background(chat.color), contentAlignment = Alignment.Center) {
+        if (photo != null) {
+            AsyncImage(model = photo, contentDescription = chat.name + " avatar", modifier = Modifier.fillMaxSize().clip(CircleShape))
+        } else {
+            Text(chat.initials, fontSize = (size * 0.40f).sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+        }
+    }
+}
+
+@Composable
+private fun PhotoSettingsScreen(
+    photoStore: DecoyPhotoStore,
+    photoRefresh: Int,
+    onBack: () -> Unit,
+    onChooseContact: (DemoChat) -> Unit,
+    onChooseGallery: (DemoChat) -> Unit,
+    onRemove: (DemoChat) -> Unit
+) {
+    Surface(Modifier.fillMaxSize(), color = DarkBg) {
+        Column {
+            Row(Modifier.fillMaxWidth().background(DarkPanel).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextMain) }
+                Column(Modifier.weight(1f)) {
+                    Text("Chat photos", color = TextMain, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text("Saved only on this device", color = TextMuted, fontSize = 12.sp)
+                }
+            }
+            Text(
+                "Choose a photo from Android Contacts or Gallery. Group avatars are Gallery-only. Photos are used only in fictional demo chats.",
+                color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(16.dp)
+            )
+            LazyColumn {
+                items(demoChats, key = { it.name }) { chat ->
+                    key(photoRefresh) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            ChatAvatar(chat = chat, photoStore = photoStore, size = 46)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(chat.name, color = TextMain, fontWeight = FontWeight.SemiBold)
+                                Text(if (photoStore.get(chat.name) != null) "Custom photo" else "Default avatar", color = TextMuted, fontSize = 11.sp)
+                            }
+                            if (!chat.name.contains("group", ignoreCase = true)) {
+                                TextButton(onClick = { onChooseContact(chat) }, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("Contact", color = Green, fontSize = 12.sp) }
+                            }
+                            TextButton(onClick = { onChooseGallery(chat) }, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("Gallery", color = Green, fontSize = 12.sp) }
+                            if (photoStore.get(chat.name) != null) {
+                                TextButton(onClick = { onRemove(chat) }, contentPadding = PaddingValues(horizontal = 2.dp)) { Text("×", color = TextMuted, fontSize = 18.sp) }
+                            }
+                        }
+                        HorizontalDivider(color = Color(0xFF26343C), thickness = 0.7.dp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConversationScreen(chat: DemoChat, photoStore: DecoyPhotoStore, photoRefresh: Int, onBack: () -> Unit) {
     Surface(Modifier.fillMaxSize(), color = Color(0xFF0B141A)) {
         Column {
             Row(
@@ -443,8 +549,8 @@ private fun ConversationScreen(chat: DemoChat, onBack: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextMain) }
-                Box(Modifier.size(38.dp).clip(CircleShape).background(chat.color), contentAlignment = Alignment.Center) {
-                    Text(chat.initials, color = Color.White, fontWeight = FontWeight.Bold)
+                key(photoRefresh) {
+                    ChatAvatar(chat = chat, photoStore = photoStore, size = 38)
                 }
                 Spacer(Modifier.width(10.dp))
                 Column {
